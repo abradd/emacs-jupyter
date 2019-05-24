@@ -1386,7 +1386,7 @@ the return value for asynchronous Jupyter source blocks in
                       (setq org-babel-after-execute-hook hook)
                       (run-hooks 'org-babel-after-execute-hook))))))))
 
-(defun jupyter-org--coalesce-stream-results (results)
+(defun jupyter-org--coalesce-stream-results (results &optional wrap)
   "Return RESULTS with all contiguous stream results concatenated.
 All stream results are then turned into fixed-width or
 example-block elements."
@@ -1395,8 +1395,10 @@ example-block elements."
            ;; Convert the head element of A to a scalar if its a
            ;; stream result, return A.
            (when (jupyter-org--stream-result-p (car a))
-             (setcar a (jupyter-org-scalar
-                        (jupyter-org-strip-last-newline (car a)))))
+             (setcar a (if wrap
+                           (jupyter-org-strip-last-newline (car a))
+                           (jupyter-org-scalar
+                             (jupyter-org-strip-last-newline (car a))))))
            a)))
     (nreverse
      (funcall
@@ -1416,10 +1418,11 @@ example-block elements."
   "Return the result string in org syntax for the results of REQ.
 Meant to be used as the return value of
 `org-babel-execute:jupyter'."
-  (when-let* ((results (jupyter-org--coalesce-stream-results
-                        (nreverse (jupyter-org-request-results req))))
-              (params (jupyter-org-request-block-params req))
-              (result-params (alist-get :result-params params)))
+  (when-let* ((params (jupyter-org-request-block-params req))
+              (result-params (alist-get :result-params params))
+              (wrap (alist-get :wrap params))
+              (results (jupyter-org--coalesce-stream-results
+                                      (nreverse (jupyter-org-request-results req)) wrap)))
     (org-element-interpret-data
      (if (or (and (= (length results) 1)
                   (jupyter-org-babel-result-p (car results)))
